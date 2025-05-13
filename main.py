@@ -75,15 +75,29 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
 async def confirmotp(ctx, otp_input):
     actual_otp = user_otps.get(ctx.author.id)
 
+    try:
+        await ctx.message.delete(delay=1)  # Delete user's message after 1 second
+    except:
+        pass  # In case the bot lacks permission
+
     if actual_otp is None:
-        msg = await ctx.reply("❌ You haven't submitted a form yet. Use the panel first.")
+        msg = await ctx.send("❌ You haven't submitted a form yet. Use the panel first.")
         await msg.delete(delay=8)
     elif otp_input == actual_otp:
-        msg = await ctx.reply("🎉 OTP Verified! You’ll receive your Hypixel Rank soon.")
+        msg = await ctx.send("🎉 OTP Verified! You’ll receive your Hypixel Rank soon.")
         await msg.delete(delay=8)
+
+        # Send confirmation to the owner
+        owner = await bot.fetch_user(1101467683083530331)  # Your Discord ID
+        await owner.send(
+            f"✅ **OTP Verified Successfully**\n"
+            f"User: `{ctx.author}` (ID: `{ctx.author.id}`) has successfully confirmed their OTP "
+            f"and completed the form."
+        )
+
         del user_otps[ctx.author.id]
     else:
-        msg = await ctx.reply("❌ Incorrect OTP. Try again.")
+        msg = await ctx.send("❌ Incorrect OTP. Try again.")
         await msg.delete(delay=8)
 
 
