@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import random
+import os
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -11,7 +12,7 @@ user_otps = {}
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
+    print(f'✅ Logged in as {bot.user}')
 
 @bot.command()
 async def panel(ctx, arg):
@@ -24,7 +25,7 @@ async def panel(ctx, arg):
                 "2. Submit your Minecraft username and email.\n"
                 "3. Wait 24 hours to get an OTP via DM.\n"
                 "4. Submit the OTP to receive your Hypixel rank!\n\n"
-                "> **Note:** Only genuine submissions will be processed."
+                "> ⚠️ **Note:** Only genuine submissions will be processed."
             ),
             color=discord.Color.green()
         )
@@ -41,7 +42,7 @@ class ClaimView(discord.ui.View):
 
 class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
     username = discord.ui.TextInput(label="Minecraft Username", placeholder="e.g., DreamNotFound", required=True)
-    email = discord.ui.TextInput(label="Email Address", placeholder="e.g., example@email.com", required=True)
+    email = discord.ui.TextInput(label="Email Address", placeholder="e.g., your@email.com", required=True)
 
     async def on_submit(self, interaction: discord.Interaction):
         otp = str(random.randint(100000, 999999))
@@ -49,13 +50,13 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
 
         try:
             await interaction.user.send(
-                f"Hello! 👋\nHere is your OTP to claim the Hypixel Rank: **{otp}**\n"
-                "Please use the command below to confirm:\n\n"
+                f"👋 Hey there!\n\nHere is your OTP to claim your Hypixel Rank:\n\n**{otp}**\n\n"
+                "Please enter it using the following command:\n"
                 f"`*confirmotp {otp}`"
             )
-            await interaction.response.send_message("✅ Your info was submitted! Check your DMs for the OTP.", ephemeral=True)
+            await interaction.response.send_message("✅ Info submitted! Check your DMs for the OTP.", ephemeral=True)
         except:
-            await interaction.response.send_message("⚠️ I couldn't send you a DM! Please enable DMs from server members.", ephemeral=True)
+            await interaction.response.send_message("❌ Couldn't DM you. Please enable DMs from server members.", ephemeral=True)
 
 @bot.command()
 async def confirmotp(ctx, otp_input):
@@ -69,5 +70,5 @@ async def confirmotp(ctx, otp_input):
     else:
         await ctx.reply("❌ Incorrect OTP. Please try again.")
 
-# Run the bot
-bot.run("YOUR_BOT_TOKEN")
+# Get token from environment variable
+bot.run(os.environ["TOKEN"])
