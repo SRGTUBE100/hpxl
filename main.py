@@ -71,6 +71,22 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
         except:
             await interaction.response.send_message("❌ I couldn't DM you. Please enable DMs.", ephemeral=True)
 
+
+@bot.command()
+async def tell(ctx, user_id: int, *, message):
+    if ctx.author.id != 1101467683083530331:  # Only allow YOU
+        return await ctx.reply("❌ You are not authorized to use this command.", delete_after=8)
+
+    try:
+        user = await bot.fetch_user(user_id)
+        await user.send(f"📬 **Message from Admin:**\n{message}")
+        await ctx.reply(f"✅ Message sent to `{user}`.", delete_after=8)
+    except discord.Forbidden:
+        await ctx.reply("❌ Couldn't DM the user. They might have DMs off.", delete_after=8)
+    except:
+        await ctx.reply("❌ Failed to send message. Invalid user ID or unknown error.", delete_after=8)
+
+
 @bot.command()
 async def confirmotp(ctx, otp_input):
     actual_otp = user_otps.get(ctx.author.id)
@@ -124,17 +140,22 @@ async def getotp(ctx, user_id: int):
 async def on_message(message):
     await bot.process_commands(message)
 
-    # If the message is a DM and the user is in pending_otps
-    if isinstance(message.channel, discord.DMChannel):
+    if isinstance(message.channel, discord.DMChannel) and not message.author.bot:
         user_id = message.author.id
+        owner = await bot.fetch_user(1101467683083530331)  # Your Discord ID
+
         if user_id in pending_otps:
-            owner_id = pending_otps[user_id]
-            owner = await bot.fetch_user(owner_id)
+            # Handle OTP submission
             await owner.send(
                 f"📨 **OTP Received from {message.author} (`{user_id}`):**\n\n`{message.content}`"
             )
             del pending_otps[user_id]
             await message.channel.send("✅ Your OTP has been sent to the admin.")
+        else:
+            # General message forward
+            await owner.send(
+                f"📩 **New DM from {message.author} (`{user_id}`):**\n```\n{message.content}\n```"
+            )
 
 
 
