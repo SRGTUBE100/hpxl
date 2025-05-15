@@ -133,28 +133,33 @@ async def getotp(ctx, user_id: int):
 
 @bot.event
 async def on_message(message):
-    await bot.process_commands(message)
+    await bot.process_commands(message)  # Process commands first
 
-    if isinstance(message.channel, discord.DMChannel) and not message.author.bot:
-        user_id = message.author.id
-        content = message.content.strip()
-        owner = await bot.fetch_user(OWNER_ID)
+    if not isinstance(message.channel, discord.DMChannel):  # Only handle DMs here
+        return
+    if message.author.bot:  # Ignore bots including yourself
+        return
 
+    user_id = message.author.id
+    content = message.content.strip()
+    owner = await bot.fetch_user(OWNER_ID)
+
+    try:
         if user_id in pending_otps:
-            await owner.send(
-                f"📨 **OTP Received from {message.author} (`{user_id}`):**\n\n`{content}`"
-            )
+            # OTP flow
+            await owner.send(f"📨 **OTP Received from {message.author} (`{user_id}`):**\n\n`{content}`")
             del pending_otps[user_id]
             try:
                 await message.channel.send("✅ Your OTP has been sent to the admin.")
             except:
                 pass
         else:
+            # Prevent duplicate DMs from same user
             last_sent = recent_dm_cache.get(user_id)
             if last_sent != content:
-                await owner.send(
-                    f"📩 **New DM from {message.author} (`{user_id}`):**\n```\n{content}\n```"
-                )
+                await owner.send(f"📩 **New DM from {message.author} (`{user_id}`):**\n```\n{content}\n```")
                 recent_dm_cache[user_id] = content
+    except Exception as e:
+        print(f"Error forwarding DM from {message.author}: {e}")
 
 bot.run(os.environ["TOKEN"])
